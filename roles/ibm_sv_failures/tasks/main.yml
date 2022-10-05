@@ -1,2 +1,27 @@
 ---
 # tasks file for roles/ibm_sv_failures
+
+- name: Fail if a host is not specified on the ansible-playbook command
+  fail:
+    msg: 
+      - 'No host specified. On the ansible-playbook command use "--extra-vars host=hostname"'
+  when: 
+    - host is not defined
+- name: Fail if prefix is not specified on the ansible-playbook command
+  fail:
+    msg: 
+      - 'No prefix specified. On the ansible-playbook command use e.g. "--extra-vars prefix=V7R1"'
+  when: 
+    - prefix is not defined
+- name: Fail if flashcopy type is not specified on the ansible-playbook command
+  fail:
+    msg: 
+      - 'No flashcopy type is specified. On the ansible-playbook command use e.g. "--extra-vars fc_type=snap" OR "--extra-vars fc_type=clone"'
+  when: 
+    - fc_type is not defined
+- name: Fail if flashcopy type is not snap or clone
+  fail:
+    msg: 
+      - 'Flashcopy type not correct, must be snap or clone e.g. "--extra-vars fc_type=snap" OR "--extra-vars fc_type=clone"'
+  when:
+    - fc_type|lower != "snap" and fc_type|lower != "clone"
