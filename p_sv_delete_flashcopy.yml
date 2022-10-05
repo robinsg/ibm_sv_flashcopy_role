@@ -1,0 +1,128 @@
+---
+# Delete flashcopy mappings, target volumes and consistency group 
+#
+# Requires the following to be specified on the ansible-playbook command:
+#     --extra-vars dc=<dc1 OR dc2> - This is the location of the V7000 you are working on
+#     --extra-vars fc_cggroup - The name of the flashcopy consistncy group to stop and delete with mappings and target volumes
+#     --ask-vault-pass - The password for the ./vars/vault.yml file where the V7000 user name and password are stored
+#
+# Example execution:
+#   ansible-playbook playbooks/p_sv_delete_flashcopy.yml --extra-vars '{"dc": "dc1","fc_cggroup": "V7R1_OLYUAT2"}' --ask-vault-pass
+#
+- name: Delete flashcopy mappings, target volumes and consistency group
+  collections:
+    - ibm.spectrum_virtualize
+  gather_facts: no
+  connection: local
+  hosts: localhost
+  vars_files:
+    - ./vars/vault.yml
+    - ./vars/vars.yml
+  vars:
+    - clustername: "{{ lookup('vars', dc ) }}"
+    - username: "{{ vault_spectrum_virt_user }}"
+    - password: "{{ vault_spectrum_virt_password }}"
+
+  tasks:
+    - name: Fail if dc is not specified on the ansible-playbook command
+      fail:
+        msg: 
+          - 'No dc is specified. On the ansible-playbook command use e.g. "--extra-vars dc=< dc1|dc2 >'
+      when: 
+        - dc is not defined
+
+    - name: Fail if flashcopy consistency groups name is not specified on the ansible-playbook command
+      fail:
+        msg: 
+          - 'No flashcopy consistency group is specified. On the ansible-playbook command use e.g. "--extra-vars fc_cggroup=< consistency_group_name >'
+      when: 
+        - fc_cggroup is not defined
+
+    - name: Retrieve the details of the FC consistency group
+      ibm_svcinfo_command:
+        clustername: "{{ clustername }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        command: "svcinfo lsfcconsistgrp -nohdr {{ fc_cggroup }}"
+      register: lsfcconsistgrp
+      ignore_errors: true
+
+    - name: Fail if FC consistency group is not found
+      fail:
+        msg:
+          - "FC consistency group is {{ fc_cggroup }} is not found"
+      when:
+        - 'lsfcconsistgrp.msg is search("CMMVC5804E")'
+
+    - name: Retrieve mapping names
+      set_fact:
+        mapping_names: "{{ lsfcconsistgrp.stdout | from_json }}"
+
+    - name: Retrieve the target volumes for each FC mapping
+      ibm_svcinfo_command:
+        clustername: "{{ clustername }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        command: "svcinfo lsfcmap {{ item.FC_mapping_name }}"
+      loop: "{{ mapping_names }}"
+      when: item is search("FC_mapping_name")
+      register: fcmap_info
+
+    - name: Create list of mappings
+      set_fact: 
+        fc_mappings: "{{ fc_mappings | default([]) + [ {'name': (item.stdout | from_json).name, 'source': (item.stdout | from_json).source_vdisk_name, 'target': (item.stdout | from_json).target_vdisk_name} ] }}"
+      loop: "{{ fcmap_info['results'] }}"
+      when: item is search("target_vdisk_name")       
+
+    - name: Stop the fc consistency group
+      ibm.spectrum_virtualize.ibm_svc_start_stop_flashcopy:
+        clustername: "{{clustername}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        name: "{{ fc_cggroup }}"
+        isgroup: True
+        state: stopped
+        force: true
+      register: fcg_stop
+      ignore_errors: true
+
+    - name: Ensure fc consistency group is not in error
+      assert:
+        that: 
+          - 'fcg_stop.msg.out is search("already in the stopped state")'
+        success_msg: "Flashcopy consistency group {{ fc_cggroup }} already stopped, continuing"
+      when: fcg_stop.msg.out is defined
+
+    - assert:
+        that: 
+          - 'fcg_stop.msg is search("has been stopped")'
+        success_msg: "Flashcopy consistency group {{ fc_cggroup }} has been stopped"
+      when: fcg_stop.msg.out is not defined
+
+    - name: Delete the FlashCopy Mappings associated with the consistency group
+      ibm.spectrum_virtualize.ibm_svc_manage_flashcopy:
+        clustername: "{{clustername}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        name: "{{ item.name }}"
+        state: absent
+        force: true
+      loop: "{{ fc_mappings | flatten(levels=1) }}"
+
+    - name: Delete the fc consistency group
+      ibm.spectrum_virtualize.ibm_svc_manage_consistgrp_flashcopy:
+        clustername: "{{clustername}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        name: "{{ fc_cggroup }}"
+        state: absent
+        force: true
+
+    - name: Delete target Flashcopy volumes 
+      ibm_svc_vdisk:
+        clustername: "{{clustername}}"
+        username: "{{username}}"
+        password: "{{password}}"
+        name: "{{ item.target }}"
+        state: absent
+      loop: "{{ fc_mappings | flatten(levels=1) }}"

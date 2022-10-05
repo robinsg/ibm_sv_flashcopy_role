@@ -1,0 +1,94 @@
+---
+# Create target flashcopy volumes for all volumes mapped to an existing host
+# Create a flashcopy consistency groups and add the flashcopy mappings
+# Start the flaschopy consistenccy group
+#
+# Requires the following to be specified on the ansible-playbook command:
+#     --extra-vars host=<NAME OF HOST ON V7000>
+#     --extra-vars dc=<dc1 OR dc2> - This is the location of the V7000 you are working on
+#     --extra-vars fc_type=snap OR clone - Detemines if this is a flashcopy snapshot or flashcopy clone
+#     --extra-vars prefix=4 character prefix for the target volumes, mappings and consistency group e.g. V7R1
+#     --ask-vault-pass - The password for the ./vars/vault.yml file where the V7000 user name and password are stored
+#
+# Example execution:
+#   ansible-playbook playbooks/p_sv_create_flashcopy.yml --extra-vars '{"host": "OLYUAT2", "dc": "dc1","prefix": "V7R1", "fc_type": "clone"}' --ask-vault-pass
+#
+- name: Create a flashcopy consistency group and mappings for all volumes mapped to a host
+  collections:
+    - ibm.spectrum_virtualize
+  gather_facts: no
+  connection: local
+  hosts: localhost
+  vars_files:
+    - ./vars/vault.yml
+    - ./vars/vars.yml
+  vars:
+    - clustername: "{{ lookup('vars', dc ) }}"
+    - username: "{{ vault_spectrum_virt_user }}"
+    - password: "{{ vault_spectrum_virt_password }}"
+    - playbook: "v7r3_flashcopy.yml"
+
+  tasks:
+    - name: Fail if a host is not specified on the ansible-playbook command
+      fail:
+        msg: 
+          - 'No host specified. On the ansible-playbook command use "--extra-vars host=hostname"'
+      when: 
+        - host is not defined
+
+    - name: Fail if prefix is not specified on the ansible-playbook command
+      fail:
+        msg: 
+          - 'No prefix specified. On the ansible-playbook command use e.g. "--extra-vars prefix=V7R1"'
+      when: 
+        - prefix is not defined
+
+    - name: Fail if flashcopy type is not specified on the ansible-playbook command
+      fail:
+        msg: 
+          - 'No flashcopy type is specified. On the ansible-playbook command use e.g. "--extra-vars fc_type=snap" OR "--extra-vars fc_type=clone"'
+      when: 
+        - fc_type is not defined
+
+    - name: Fail if flashcopy type is not snap or clone
+      fail:
+        msg: 
+          - 'Flashcopy type not correct, must be snap or clone e.g. "--extra-vars fc_type=snap" OR "--extra-vars fc_type=clone"'
+      when:
+        - fc_type|lower != "snap" and fc_type|lower != "clone"
+
+    - name: Retrieve the host mapping and volume information
+      include_role:
+        name: sv_info
+        tasks_from: "{{ playbook }}"
+        apply:
+          tags:
+            - hostmap
+    
+    - name: Create Flashcopy Consistency Group
+      include_role:
+        name: sv_fcconsist
+        tasks_from: "{{ playbook }}"     
+        apply:
+          tags:
+            - fccreate        
+      vars:
+        - task: "create"
+
+    - name: Snapshot flashcopy and consistency group mapping
+      include_role:
+        name: sv_flashcopy
+        tasks_from: "{{ playbook }}"     
+        apply:
+          tags:
+            - fcmapping  
+   
+    - name: Prepare and start the Flashcopy consistency group
+      include_role:
+        name: sv_fcconsist
+        tasks_from: "{{ playbook }}"     
+        apply:
+          tags:
+            - start        
+      vars:
+        - task: "start"        
