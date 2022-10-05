@@ -55,3 +55,13 @@
     consistgrp: "{{ prefix | upper }}_{{ host | upper }}"
   loop: "{{ volumes.results }}"
   when: fc_type == "clone"
+
+- name: Start the flashcopy consistency group
+  ibm.spectrum_virtualize.ibm_svc_start_stop_flashcopy:
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    name:  "{{ prefix | upper }}_{{ host | upper }}"
+    isgroup: true
+    state: started
+    
