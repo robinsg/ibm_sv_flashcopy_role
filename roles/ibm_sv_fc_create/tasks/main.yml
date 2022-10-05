@@ -18,11 +18,40 @@
   register: volumes
   loop: "{{ mappings.stdout }}"
 
-  - name: Create a flashcopy consistency group
+- name: Create a flashcopy consistency group
   ibm.spectrum_virtualize.ibm_svc_manage_consistgrp_flashcopy:
     clustername: "{{ clustername }}"
     username: "{{ username }}"
     password: "{{ password }}"
     name:  "{{ prefix | upper }}_{{ host | upper }}"
     state: present
-  when: task == "create"
+
+- name: Create flashcopy SNAPSHOT mapping to consistency group
+  ibm.spectrum_virtualize.ibm_svc_manage_flashcopy:
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    name:  "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
+    state: present
+    copytype: "snapshot"
+    source: "{{ (item['stdout'] | from_json)[0].name }}"
+    target: "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
+    mdiskgrp: "{{ (item['stdout'] | from_json)[0].mdisk_grp_name }}"
+    consistgrp: "{{ prefix | upper }}_{{ host | upper }}"
+  loop: "{{ volumes.results }}"
+  when: fc_type == "snap"
+
+- name: Create flashcopy CLONE mapping to consistency group
+  ibm.spectrum_virtualize.ibm_svc_manage_flashcopy:
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    name:  "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
+    state: present
+    copytype: "clone"
+    source: "{{ (item['stdout'] | from_json)[0].name }}"
+    target: "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
+    mdiskgrp: "{{ (item['stdout'] | from_json)[0].mdisk_grp_name }}"
+    consistgrp: "{{ prefix | upper }}_{{ host | upper }}"
+  loop: "{{ volumes.results }}"
+  when: fc_type == "clone"

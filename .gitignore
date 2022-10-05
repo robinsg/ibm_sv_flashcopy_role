@@ -1,1 +1,3 @@
 *.gz
+*.log
+p_test*
