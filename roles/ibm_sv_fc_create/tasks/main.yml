@@ -1,2 +1,28 @@
 ---
 # tasks file for roles/ibm_sv_fc_create
+
+- name: Get a list of volume mappings for the host
+  ibm.spectrum_virtualize.ibm_svcinfo_command:
+    command: "svcinfo lshostvdiskmap {{ host }}"
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+  register: mappings
+
+- name: Get volume information for each volume mapped to the host
+  ibm.spectrum_virtualize.ibm_svcinfo_command:
+    command: "svcinfo lsvdisk {{ item.vdisk_name }} "
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+  register: volumes
+  loop: "{{ mappings.stdout }}"
+
+  - name: Create a flashcopy consistency group
+  ibm.spectrum_virtualize.ibm_svc_manage_consistgrp_flashcopy:
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+    name:  "{{ prefix | upper }}_{{ host | upper }}"
+    state: present
+  when: task == "create"
