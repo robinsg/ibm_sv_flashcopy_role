@@ -1,39 +1,41 @@
 ---
 # tasks file for roles/ibm_sv_fc_create
 
-- name: Obtain an authentication token
-  ibm.spectrum_virtualize.ibm_svc_auth:
-    clustername: "{ clustername }"
-    username: "{ username }"
-    password: "{ password }"
-  register: auth
-
 - name: Get a list of volume mappings for the host
   ibm.spectrum_virtualize.ibm_svcinfo_command:
     command: "svcinfo lshostvdiskmap {{ host }}"
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    username: "{{ username }}"
+    password: "{{ password }}"
   register: mappings
 
 - name: Get volume information for each volume mapped to the host
   ibm.spectrum_virtualize.ibm_svcinfo_command:
     command: "svcinfo lsvdisk {{ item.vdisk_name }} "
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    username: "{{ username }}"
+    password: "{{ password }}"
   register: volumes
   loop: "{{ mappings.stdout }}"
+
+- name: Obtain an authentication token
+  ibm.spectrum_virtualize.ibm_svc_auth:
+    clustername: "{{ clustername }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+  register: auth
 
 - name: Create a flashcopy consistency group
   ibm.spectrum_virtualize.ibm_svc_manage_consistgrp_flashcopy:
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    token: "{{ auth.token }}"
     name:  "{{ prefix | upper }}_{{ host | upper }}"
     state: present
 
 - name: Create flashcopy SNAPSHOT mapping to consistency group
   ibm.spectrum_virtualize.ibm_svc_manage_flashcopy:
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    token: "{{ auth.token }}"
     name:  "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
     state: present
     copytype: "snapshot"
@@ -47,7 +49,7 @@
 - name: Create flashcopy CLONE mapping to consistency group
   ibm.spectrum_virtualize.ibm_svc_manage_flashcopy:
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    token: "{{ auth.token }}"
     name:  "{{ prefix | upper }}_{{ (item['stdout'] | from_json)[0].name }}"
     state: present
     copytype: "clone"
@@ -61,7 +63,7 @@
 - name: Start the flashcopy consistency group
   ibm.spectrum_virtualize.ibm_svc_start_stop_flashcopy:
     clustername: "{{ clustername }}"
-    token: "{ auth.token }"
+    token: "{{ auth.token }}"
     name:  "{{ prefix | upper }}_{{ host | upper }}"
     isgroup: true
     state: started

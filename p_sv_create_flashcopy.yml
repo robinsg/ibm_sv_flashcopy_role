@@ -4,14 +4,15 @@
 # Start the flaschopy consistenccy group
 #
 # Requires the following to be specified on the ansible-playbook command:
-#     --extra-vars host=<NAME OF HOST as defined on FlashSystem/Storwize/SVC>
-#     --extra-vars sv_server=<NAME or IP ADDRESS OF FlashSystem/Storwize/SVC>
-#     --extra-vars fc_type=snap OR clone - Detemines if this is a flashcopy snapshot or flashcopy clone
-#     --extra-vars prefix=4 character prefix for the target volumes, mappings and consistency group e.g. V7R1
-#     --ask-vault-pass - The password for the ./vars/vault.yml file where the V7000 user name and password are stored
+#     --extra-vars
+#         host=<"NAME OF HOST as defined on FlashSystem/Storwize/SVC">
+#         clustername=<"NAME" or "IP ADDRESS OF FlashSystem/Storwize/SVC">
+#         fc_type="snap" OR "clone" - Determines if this is a flashcopy snapshot or flashcopy clone
+#         prefix=4 character prefix for the target volumes, mappings and consistency group e.g. TEST
+#     --ask-vault-pass - The password for the vault/main.yml file where the FlashSystem/Storwize/SVC user name and password are stored
 #
 # Example execution:
-#   ansible-playbook playbooks/p_sv_create_flashcopy.yml --extra-vars '{"host": "MYSERVER", "sv_server": "dc01-fs-mgt1","prefix": "TEST", "fc_type": "clone"}' --ask-vault-pass
+#   ansible-playbook p_sv_create_flashcopy.yml --extra-vars '{"host": "SGC_TEST", "clustername": "jedc2-gts-fs7200-mgt1","prefix": "TEST", "fc_type": "clone"}' --ask-vault-pass
 #
 - name: Create a flashcopy consistency group and mappings for all volumes mapped to a host
   collections:
@@ -20,10 +21,8 @@
   connection: local
   hosts: localhost
   vars_files:
-    - ./vars/vault.yml
-    - ./vars/vars.yml
+    - vault/main.yml
   vars:
-    - clustername: "{{ lookup('vars', dc ) }}"
     - username: "{{ vault_spectrum_virt_user }}"
     - password: "{{ vault_spectrum_virt_password }}"
 

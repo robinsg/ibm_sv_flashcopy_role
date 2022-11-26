@@ -1,2 +1,4 @@
 ---
 # defaults file for roles/ibm_sv_fc_create
+username: "{ vault_spectrum_virt_user }"
+password: "{ vault_spectrum_virt_password }"
