@@ -12,7 +12,7 @@
 #     --ask-vault-pass - The password for the vault/main.yml file where the FlashSystem/Storwize/SVC user name and password are stored
 #
 # Example execution:
-#   ansible-playbook p_sv_create_flashcopy.yml --extra-vars '{"host": "SGC_TEST", "clustername": "jedc2-gts-fs7200-mgt1","prefix": "TEST", "fc_type": "clone"}' --ask-vault-pass
+#   ansible-playbook p_sv_create_flashcopy.yml --extra-vars '{"host": "SGC_TEST", "clustername": "dc2-ibm-fs7200-mgt1","prefix": "TEST", "fc_type": "clone"}' --ask-vault-pass
 #
 - name: Create a flashcopy consistency group and mappings for all volumes mapped to a host
   collections:

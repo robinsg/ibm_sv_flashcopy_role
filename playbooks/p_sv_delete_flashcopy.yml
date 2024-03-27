@@ -7,7 +7,7 @@
 #     --ask-vault-pass - The password for the ./vars/vault.yml file where the V7000 user name and password are stored
 #
 # Example execution:
-#   ansible-playbook playbooks/p_sv_delete_flashcopy.yml --extra-vars '{"dc": "dc1","fc_cggroup": "V7R1_OLYUAT2"}' --ask-vault-pass
+#   ansible-playbook playbooks/p_sv_delete_flashcopy.yml --extra-vars '{"dc": "dc1","fc_cggroup": "MY-FC01"}' --ask-vault-pass
 #
 - name: Delete flashcopy mappings, target volumes and consistency group
   collections:
